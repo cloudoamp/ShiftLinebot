@@ -106,7 +106,8 @@ function buildGameJoltUrl(
   const url = new URL(GAMEJOLT_API_BASE + endpoint);
 
   Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
+    if (value === undefined || value === null)
+      return;
 
     url.searchParams.append(key, String(value));
   });
@@ -133,6 +134,7 @@ function compareVersion(v1, v2) {
       .split('.')
       .map(part => {
         const num = parseInt(part, 10);
+
         return Number.isNaN(num) ? part : num;
       });
 
@@ -145,7 +147,10 @@ function compareVersion(v1, v2) {
     const x = a[i] !== undefined ? a[i] : 0;
     const y = b[i] !== undefined ? b[i] : 0;
 
-    if (typeof x === 'number' && typeof y === 'number') {
+    if (
+      typeof x === 'number' &&
+      typeof y === 'number'
+    ) {
       if (x > y) return 1;
       if (x < y) return -1;
 
@@ -354,20 +359,48 @@ client.on(
     if (!interaction.isChatInputCommand())
       return;
 
+    // updatecheck
     if (interaction.commandName === 'updatecheck') {
       await interaction.reply({
         content: '確認中...',
       });
 
-      const ok = await checkVersion(true);
+      const version = await fetchVersion();
+
+      let old = '';
+
+      if (fs.existsSync('./version.txt')) {
+        old = fs.readFileSync(
+          './version.txt',
+          'utf8'
+        ).trim();
+      }
+
+      if (
+        version === 'unknown' ||
+        version === 'error'
+      ) {
+        return interaction.followUp({
+          content: '取得失敗',
+        });
+      }
+
+      const updated =
+        !old ||
+        compareVersion(version, old) === 1;
+
+      if (updated) {
+        await checkVersion();
+      }
 
       await interaction.followUp({
-        content: ok
-          ? '更新あり'
-          : '更新なし',
+        content: updated
+          ? `更新あり (${version})`
+          : `更新なし (${version})`,
       });
     }
 
+    // nowversion
     if (interaction.commandName === 'nowversion') {
       const v = await fetchVersion();
 
@@ -378,6 +411,80 @@ client.on(
             .setDescription(v),
         ],
       });
+    }
+
+    // profile
+    if (interaction.commandName === 'profile') {
+      const id =
+        interaction.options.getString('userid');
+
+      await interaction.reply({
+        content: '取得中...',
+      });
+
+      const data = await getUserData(id);
+
+      if (!data) {
+        return interaction.followUp(
+          'データなし'
+        );
+      }
+
+      let displayValue = data;
+
+      try {
+        const parsed = JSON.parse(data);
+
+        displayValue = JSON.stringify(
+          parsed,
+          null,
+          2
+        );
+      } catch {
+        displayValue = String(data);
+      }
+
+      if (displayValue.length > 1000) {
+        displayValue =
+          displayValue.slice(0, 1000) + '...';
+      }
+
+      await interaction.followUp({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(id)
+            .addFields(
+              {
+                name: 'ユーザーID',
+                value: id,
+                inline: false,
+              },
+              {
+                name: 'データ',
+                value: displayValue,
+                inline: false,
+              }
+            ),
+        ],
+      });
+    }
+
+    // restart
+    if (interaction.commandName === 'restart') {
+      await interaction.reply(
+        'ボットを再起動します...'
+      );
+
+      await shutdown(0);
+    }
+
+    // exit
+    if (interaction.commandName === 'exit') {
+      await interaction.reply(
+        'ボットを終了します...'
+      );
+
+      await shutdown(0);
     }
   }
 );
