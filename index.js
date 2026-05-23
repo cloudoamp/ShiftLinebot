@@ -11,7 +11,6 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ヘルスチェック用エンドポイント
 app.get('/', (req, res) => {
   res.send('Bot is alive!');
 });
@@ -32,7 +31,6 @@ const {
   SlashCommandBuilder,
 } = require('discord.js');
 
-const app = express();
 
 /* Render監視用 */
 app.get('/', (req, res) => {
