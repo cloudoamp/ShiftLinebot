@@ -283,23 +283,15 @@ async function fetchVersion() {
   }
 }
 
-async function checkVersion(
-  force = false
-) {
+async function checkVersion(force = false) {
   try {
-    const version =
-      await fetchVersion();
+    const version = await fetchVersion();
 
     let old = '';
 
-    if (
-      fs.existsSync('./version.txt')
-    ) {
+    if (fs.existsSync('./version.txt')) {
       old = fs
-        .readFileSync(
-          './version.txt',
-          'utf8'
-        )
+        .readFileSync('./version.txt', 'utf8')
         .trim();
     }
 
@@ -312,8 +304,7 @@ async function checkVersion(
 
     if (
       old &&
-      compareVersion(version, old) <=
-        0 &&
+      compareVersion(version, old) <= 0 &&
       !force
     ) {
       return false;
@@ -321,8 +312,7 @@ async function checkVersion(
 
     if (
       !old ||
-      compareVersion(version, old) ===
-        1
+      compareVersion(version, old) === 1
     ) {
       fs.writeFileSync(
         './version.txt',
@@ -344,9 +334,7 @@ async function checkVersion(
 
     const embed = new EmbedBuilder()
       .setColor(0x2b2d31)
-      .setTitle(
-        `🆕 Version ${version}`
-      )
+      .setTitle(`🆕 Version ${version}`)
       .setDescription(
         detail.slice(0, 4000)
       );
@@ -364,15 +352,32 @@ async function checkVersion(
         button
       );
 
-    const channel =
-      await client.channels.fetch(
-        CHANNEL_ID
-      );
+    // 全Guildへ送信
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        const fullGuild =
+          await guild.fetch();
 
-    await channel.send({
-      embeds: [embed],
-      components: [row],
-    });
+        const channel =
+          fullGuild.systemChannel;
+
+        if (!channel) continue;
+
+        await channel.send({
+          embeds: [embed],
+          components: [row],
+        });
+
+        console.log(
+          `Sent update to ${guild.name}`
+        );
+      } catch (err) {
+        console.error(
+          `Failed to send to ${guild.name}`,
+          err
+        );
+      }
+    }
 
     return true;
   } catch (e) {
