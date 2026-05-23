@@ -422,6 +422,10 @@ const commands = [
     ),
 
   new SlashCommandBuilder()
+  .setName('help')
+  .setDescription('コマンド一覧'),
+  
+  new SlashCommandBuilder()
     .setName('profile')
     .setDescription(
       'ユーザー情報'
@@ -616,6 +620,25 @@ client.on(
       });
     }
 
+    if (interaction.commandName === 'help') {
+  const embed = new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle('Help')
+    .setDescription(
+      [
+        '`/updatecheck` アップデート確認',
+        '`/nowversion` 現在のバージョン',
+        '`/profile <userid>` ユーザーデータ取得',
+        '`/restart` ボット再起動',
+        '`/exit` ボット終了',
+        '`/help` コマンド一覧',
+      ].join('\n')
+    );
+
+  await interaction.reply({
+    embeds: [embed],
+  });
+}
 
     // exit
     if (
