@@ -3,7 +3,10 @@ require('dotenv').config();
 const fs = require('fs');
 const crypto = require('crypto');
 const cron = require('node-cron');
-const fetch = globalThis.fetch || require('node-fetch');
+const fetch =
+  globalThis.fetch ||
+  require('node-fetch');
+
 const express = require('express');
 
 const {
@@ -25,14 +28,24 @@ app.get('/', (req, res) => {
   res.send('Bot is running');
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log('Web server started');
-});
+app.listen(
+  process.env.PORT || 3000,
+  () => {
+    console.log(
+      'Web server started'
+    );
+  }
+);
 
 const TOKEN = process.env.TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-const GAME_ID = process.env.GAME_ID;
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const CLIENT_ID =
+  process.env.CLIENT_ID;
+
+const GAME_ID =
+  process.env.GAME_ID;
+
+const PRIVATE_KEY =
+  process.env.PRIVATE_KEY;
 
 const UPDATE_URL =
   process.env.UPDATE_URL ||
@@ -62,57 +75,12 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds],
 });
 
-async function setOfflineStatus() {
-  try {
-    if (client.user) {
-      await client.user.setStatus(
-        'invisible'
-      );
-    }
-  } catch (err) {
-    console.error(
-      'Failed to set offline status:',
-      err
-    );
-  }
-}
-
-const shutdown = async (
-  code = 0
-) => {
-  await setOfflineStatus();
-
-  try {
-    await client.destroy();
-  } catch {}
-
-  process.exit(code);
-};
-
-process.on(
-  'uncaughtException',
-  async error => {
-    console.error(error);
-  }
-);
-
-process.on(
-  'unhandledRejection',
-  async reason => {
-    console.error(reason);
-  }
-);
-
-process.on('SIGINT', () =>
-  shutdown(0)
-);
-
-process.on('SIGTERM', () =>
-  shutdown(0)
-);
-
 const GAMEJOLT_API_BASE =
   'https://api.gamejolt.com/api/game/v1_2';
+
+/* =========================
+   Utility
+========================= */
 
 function buildGameJoltUrl(
   endpoint,
@@ -239,6 +207,63 @@ function formatUpdateText(text) {
     .replace(/```/g, '`` ˋ');
 }
 
+/* =========================
+   Status / Shutdown
+========================= */
+
+async function setOfflineStatus() {
+  try {
+    if (client.user) {
+      await client.user.setStatus(
+        'invisible'
+      );
+    }
+  } catch (err) {
+    console.error(
+      'Failed to set offline status:',
+      err
+    );
+  }
+}
+
+const shutdown = async (
+  code = 0
+) => {
+  await setOfflineStatus();
+
+  try {
+    await client.destroy();
+  } catch {}
+
+  process.exit(code);
+};
+
+process.on(
+  'uncaughtException',
+  async error => {
+    console.error(error);
+  }
+);
+
+process.on(
+  'unhandledRejection',
+  async reason => {
+    console.error(reason);
+  }
+);
+
+process.on('SIGINT', () =>
+  shutdown(0)
+);
+
+process.on('SIGTERM', () =>
+  shutdown(0)
+);
+
+/* =========================
+   API
+========================= */
+
 async function getUserData(
   userId
 ) {
@@ -307,6 +332,56 @@ async function fetchVersion() {
   }
 }
 
+/* =========================
+   Duplicate Check
+========================= */
+
+async function alreadyPosted(
+  channel,
+  version
+) {
+  try {
+    const messages =
+      await channel.messages.fetch({
+        limit: 20,
+      });
+
+    return messages.some(msg => {
+      // Bot自身のみ確認
+      if (
+        msg.author.id !==
+        client.user.id
+      ) {
+        return false;
+      }
+
+      if (!msg.embeds?.length)
+        return false;
+
+      const embed =
+        msg.embeds[0];
+
+      return (
+        embed.title &&
+        embed.title.includes(
+          `Version ${version}`
+        )
+      );
+    });
+  } catch (e) {
+    console.error(
+      '履歴取得失敗:',
+      e
+    );
+
+    return false;
+  }
+}
+
+/* =========================
+   Update Check
+========================= */
+
 async function checkVersion(
   force = false
 ) {
@@ -334,25 +409,25 @@ async function checkVersion(
       return false;
     }
 
-    if (
-      old &&
-      compareVersion(version, old) <=
-        0 &&
-      !force
-    ) {
+    const isNew =
+      !old ||
+      compareVersion(
+        version,
+        old
+      ) === 1;
+
+    if (!isNew && !force) {
+      console.log(
+        'No update'
+      );
+
       return false;
     }
 
-    if (
-      !old ||
-      compareVersion(version, old) ===
-        1
-    ) {
-      fs.writeFileSync(
-        './version.txt',
-        version
-      );
-    }
+    fs.writeFileSync(
+      './version.txt',
+      version
+    );
 
     let detail = 'なし';
 
@@ -374,7 +449,8 @@ async function checkVersion(
         )
         .setDescription(
           detail.slice(0, 4000)
-        );
+        )
+        .setTimestamp();
 
     const button =
       new ButtonBuilder()
@@ -391,7 +467,6 @@ async function checkVersion(
         button
       );
 
-    // 全Guildのsystem channelへ送信
     for (const guild of client.guilds.cache.values()) {
       try {
         const fullGuild =
@@ -401,6 +476,21 @@ async function checkVersion(
           fullGuild.systemChannel;
 
         if (!channel) continue;
+
+        // 既に投稿済み確認
+        const exists =
+          await alreadyPosted(
+            channel,
+            version
+          );
+
+        if (exists) {
+          console.log(
+            `${guild.name} は既に送信済み`
+          );
+
+          continue;
+        }
 
         await channel.send({
           embeds: [embed],
@@ -426,6 +516,10 @@ async function checkVersion(
   }
 }
 
+/* =========================
+   Ready
+========================= */
+
 client.once(
   'ready',
   async () => {
@@ -434,8 +528,10 @@ client.once(
       client.user.tag
     );
 
+    // 起動時チェック
     await checkVersion();
 
+    // 5分毎
     cron.schedule(
       '*/5 * * * *',
       async () => {
@@ -451,6 +547,10 @@ client.once(
     );
   }
 );
+
+/* =========================
+   Commands
+========================= */
 
 const commands = [
   new SlashCommandBuilder()
@@ -513,6 +613,10 @@ const rest = new REST({
   }
 })();
 
+/* =========================
+   Interaction
+========================= */
+
 client.on(
   'interactionCreate',
   async interaction => {
@@ -565,7 +669,7 @@ client.on(
         ) === 1;
 
       if (updated) {
-        await checkVersion();
+        await checkVersion(true);
       }
 
       await interaction.followUp({
@@ -701,6 +805,10 @@ client.on(
     }
   }
 );
+
+/* =========================
+   Login
+========================= */
 
 client.login(TOKEN).catch(
   async e => {
