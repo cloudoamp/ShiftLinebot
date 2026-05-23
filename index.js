@@ -68,7 +68,9 @@ process.on('unhandledRejection', async reason => {
 process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
-const UPDATE_URL = process.env.UPDATE_URL || process.env.URL;
+const UPDATE_URL =
+  process.env.UPDATE_URL ||
+  process.env.URL;
 
 const UPDATE_DATA_URL =
   process.env.UPDATE_DATA_URL ||
@@ -103,24 +105,48 @@ function buildGameJoltUrl(
   params = {},
   bodyFlat = ''
 ) {
-  const url = new URL(GAMEJOLT_API_BASE + endpoint);
+  const url = new URL(
+    GAMEJOLT_API_BASE + endpoint
+  );
 
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null)
-      return;
+  Object.entries(params).forEach(
+    ([key, value]) => {
+      if (
+        value === undefined ||
+        value === null
+      )
+        return;
 
-    url.searchParams.append(key, String(value));
-  });
+      url.searchParams.append(
+        key,
+        String(value)
+      );
+    }
+  );
 
-  url.searchParams.append('game_id', GAME_ID);
-  url.searchParams.append('format', 'json');
+  url.searchParams.append(
+    'game_id',
+    GAME_ID
+  );
+
+  url.searchParams.append(
+    'format',
+    'json'
+  );
 
   const signature = crypto
     .createHash('md5')
-    .update(url.toString() + bodyFlat + PRIVATE_KEY)
+    .update(
+      url.toString() +
+        bodyFlat +
+        PRIVATE_KEY
+    )
     .digest('hex');
 
-  url.searchParams.append('signature', signature);
+  url.searchParams.append(
+    'signature',
+    signature
+  );
 
   return url;
 }
@@ -135,17 +161,25 @@ function compareVersion(v1, v2) {
       .map(part => {
         const num = parseInt(part, 10);
 
-        return Number.isNaN(num) ? part : num;
+        return Number.isNaN(num)
+          ? part
+          : num;
       });
 
   const a = normalize(v1);
   const b = normalize(v2);
 
-  const len = Math.max(a.length, b.length);
+  const len = Math.max(
+    a.length,
+    b.length
+  );
 
   for (let i = 0; i < len; i++) {
-    const x = a[i] !== undefined ? a[i] : 0;
-    const y = b[i] !== undefined ? b[i] : 0;
+    const x =
+      a[i] !== undefined ? a[i] : 0;
+
+    const y =
+      b[i] !== undefined ? b[i] : 0;
 
     if (
       typeof x === 'number' &&
@@ -167,16 +201,39 @@ function compareVersion(v1, v2) {
   return 0;
 }
 
+function formatUpdateText(text) {
+  if (!text) return 'なし';
+
+  return text
+    .replace(/\r/g, '')
+
+    // # 見出し
+    .replace(/^# (.*)$/gm, '## $1')
+
+    // ## 見出し
+    .replace(/^## (.*)$/gm, '### $1')
+
+    // 箇条書き
+    .replace(/^- /gm, '• ')
+
+    // コードブロック対策
+    .replace(/```/g, '`` ˋ');
+}
+
 async function getUserData(userId) {
   const key = `user_${userId}_data`;
 
-  const url = buildGameJoltUrl('/data-store/', {
-    key,
-    user_id: userId,
-  });
+  const url = buildGameJoltUrl(
+    '/data-store/',
+    {
+      key,
+      user_id: userId,
+    }
+  );
 
   try {
     const res = await fetch(url);
+
     const json = await res.json();
 
     const response = json?.response;
@@ -184,22 +241,33 @@ async function getUserData(userId) {
     if (!response) return null;
 
     const success = response.success;
-    const data = response.data ?? null;
 
-    if (success !== 'true' && success !== true) {
+    const data =
+      response.data ?? null;
+
+    if (
+      success !== 'true' &&
+      success !== true
+    ) {
       return null;
     }
 
     return data;
   } catch (e) {
-    console.error('GameJolt API error:', e);
+    console.error(
+      'GameJolt API error:',
+      e
+    );
+
     return null;
   }
 }
 
 async function fetchVersion() {
   try {
-    const res = await fetch(UPDATE_URL);
+    const res = await fetch(
+      UPDATE_URL
+    );
 
     const text = await res.text();
 
@@ -207,23 +275,32 @@ async function fetchVersion() {
       /version\s*[:]\s*([\w.]+)/i
     );
 
-    return match ? match[1] : 'unknown';
+    return match
+      ? match[1]
+      : 'unknown';
   } catch {
     return 'error';
   }
 }
 
-async function checkVersion(force = false) {
+async function checkVersion(
+  force = false
+) {
   try {
-    const version = await fetchVersion();
+    const version =
+      await fetchVersion();
 
     let old = '';
 
-    if (fs.existsSync('./version.txt')) {
-      old = fs.readFileSync(
-        './version.txt',
-        'utf8'
-      ).trim();
+    if (
+      fs.existsSync('./version.txt')
+    ) {
+      old = fs
+        .readFileSync(
+          './version.txt',
+          'utf8'
+        )
+        .trim();
     }
 
     if (
@@ -235,7 +312,8 @@ async function checkVersion(force = false) {
 
     if (
       old &&
-      compareVersion(version, old) <= 0 &&
+      compareVersion(version, old) <=
+        0 &&
       !force
     ) {
       return false;
@@ -243,34 +321,43 @@ async function checkVersion(force = false) {
 
     if (
       !old ||
-      compareVersion(version, old) === 1
+      compareVersion(version, old) ===
+        1
     ) {
-      fs.writeFileSync('./version.txt', version);
+      fs.writeFileSync(
+        './version.txt',
+        version
+      );
     }
 
     let detail = 'なし';
 
     try {
-      const d = await fetch(UPDATE_DATA_URL);
+      const d = await fetch(
+        UPDATE_DATA_URL
+      );
 
-      detail = await d.text();
+      detail = formatUpdateText(
+        await d.text()
+      );
     } catch {}
 
     const embed = new EmbedBuilder()
       .setColor(0x2b2d31)
-      .setTitle(`🆕 Version ${version}`)
+      .setTitle(
+        `🆕 Version ${version}`
+      )
       .setDescription(
-        '```md\n' +
-          detail.slice(0, 3000) +
-          '\n```'
+        detail.slice(0, 4000)
       );
 
-    const button = new ButtonBuilder()
-      .setLabel('インストール')
-      .setStyle(ButtonStyle.Link)
-      .setURL(
-        'https://gamejolt.com/games/shiftline/1053992'
-      );
+    const button =
+      new ButtonBuilder()
+        .setLabel('インストール')
+        .setStyle(ButtonStyle.Link)
+        .setURL(
+          'https://gamejolt.com/games/shiftline/1053992'
+        );
 
     const row =
       new ActionRowBuilder().addComponents(
@@ -278,7 +365,9 @@ async function checkVersion(force = false) {
       );
 
     const channel =
-      await client.channels.fetch(CHANNEL_ID);
+      await client.channels.fetch(
+        CHANNEL_ID
+      );
 
     await channel.send({
       embeds: [embed],
@@ -288,36 +377,55 @@ async function checkVersion(force = false) {
     return true;
   } catch (e) {
     console.error(e);
+
     return false;
   }
 }
 
-client.once('ready', async () => {
-  console.log('BOT ONLINE:', client.user.tag);
+client.once(
+  'ready',
+  async () => {
+    console.log(
+      'BOT ONLINE:',
+      client.user.tag
+    );
 
-  await checkVersion();
+    await checkVersion();
 
-  cron.schedule('*/5 * * * *', async () => {
-    try {
-      await checkVersion();
-    } catch (e) {
-      console.error('cron error', e);
-    }
-  });
-});
+    cron.schedule(
+      '*/5 * * * *',
+      async () => {
+        try {
+          await checkVersion();
+        } catch (e) {
+          console.error(
+            'cron error',
+            e
+          );
+        }
+      }
+    );
+  }
+);
 
 const commands = [
   new SlashCommandBuilder()
     .setName('updatecheck')
-    .setDescription('アップデート確認'),
+    .setDescription(
+      'アップデート確認'
+    ),
 
   new SlashCommandBuilder()
     .setName('nowversion')
-    .setDescription('現在のバージョン'),
+    .setDescription(
+      '現在のバージョン'
+    ),
 
   new SlashCommandBuilder()
     .setName('profile')
-    .setDescription('ユーザー情報')
+    .setDescription(
+      'ユーザー情報'
+    )
     .addStringOption(opt =>
       opt
         .setName('userid')
@@ -327,11 +435,15 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('restart')
-    .setDescription('ボットを再起動します'),
+    .setDescription(
+      'ボットを再起動します'
+    ),
 
   new SlashCommandBuilder()
     .setName('exit')
-    .setDescription('ボットを終了します'),
+    .setDescription(
+      'ボットを終了します'
+    ),
 ].map(c => c.toJSON());
 
 const rest = new REST({
@@ -341,7 +453,9 @@ const rest = new REST({
 (async () => {
   try {
     await rest.put(
-      Routes.applicationCommands(CLIENT_ID),
+      Routes.applicationCommands(
+        CLIENT_ID
+      ),
       {
         body: commands,
       }
@@ -356,24 +470,36 @@ const rest = new REST({
 client.on(
   'interactionCreate',
   async interaction => {
-    if (!interaction.isChatInputCommand())
+    if (
+      !interaction.isChatInputCommand()
+    )
       return;
 
     // updatecheck
-    if (interaction.commandName === 'updatecheck') {
+    if (
+      interaction.commandName ===
+      'updatecheck'
+    ) {
       await interaction.reply({
         content: '確認中...',
       });
 
-      const version = await fetchVersion();
+      const version =
+        await fetchVersion();
 
       let old = '';
 
-      if (fs.existsSync('./version.txt')) {
-        old = fs.readFileSync(
-          './version.txt',
-          'utf8'
-        ).trim();
+      if (
+        fs.existsSync(
+          './version.txt'
+        )
+      ) {
+        old = fs
+          .readFileSync(
+            './version.txt',
+            'utf8'
+          )
+          .trim();
       }
 
       if (
@@ -387,7 +513,10 @@ client.on(
 
       const updated =
         !old ||
-        compareVersion(version, old) === 1;
+        compareVersion(
+          version,
+          old
+        ) === 1;
 
       if (updated) {
         await checkVersion();
@@ -401,8 +530,12 @@ client.on(
     }
 
     // nowversion
-    if (interaction.commandName === 'nowversion') {
-      const v = await fetchVersion();
+    if (
+      interaction.commandName ===
+      'nowversion'
+    ) {
+      const v =
+        await fetchVersion();
 
       await interaction.reply({
         embeds: [
@@ -414,15 +547,21 @@ client.on(
     }
 
     // profile
-    if (interaction.commandName === 'profile') {
+    if (
+      interaction.commandName ===
+      'profile'
+    ) {
       const id =
-        interaction.options.getString('userid');
+        interaction.options.getString(
+          'userid'
+        );
 
       await interaction.reply({
         content: '取得中...',
       });
 
-      const data = await getUserData(id);
+      const data =
+        await getUserData(id);
 
       if (!data) {
         return interaction.followUp(
@@ -433,20 +572,28 @@ client.on(
       let displayValue = data;
 
       try {
-        const parsed = JSON.parse(data);
+        const parsed =
+          JSON.parse(data);
 
-        displayValue = JSON.stringify(
-          parsed,
-          null,
-          2
-        );
+        displayValue =
+          JSON.stringify(
+            parsed,
+            null,
+            2
+          );
       } catch {
-        displayValue = String(data);
+        displayValue =
+          String(data);
       }
 
-      if (displayValue.length > 1000) {
+      if (
+        displayValue.length > 1000
+      ) {
         displayValue =
-          displayValue.slice(0, 1000) + '...';
+          displayValue.slice(
+            0,
+            1000
+          ) + '...';
       }
 
       await interaction.followUp({
@@ -469,17 +616,12 @@ client.on(
       });
     }
 
-    // restart
-    if (interaction.commandName === 'restart') {
-      await interaction.reply(
-        'ボットを再起動します...'
-      );
-
-      await shutdown(0);
-    }
 
     // exit
-    if (interaction.commandName === 'exit') {
+    if (
+      interaction.commandName ===
+      'exit'
+    ) {
       await interaction.reply(
         'ボットを終了します...'
       );
@@ -489,11 +631,13 @@ client.on(
   }
 );
 
-client.login(TOKEN).catch(async e => {
-  console.error(
-    'Discord login failed:',
-    e
-  );
+client.login(TOKEN).catch(
+  async e => {
+    console.error(
+      'Discord login failed:',
+      e
+    );
 
-  await shutdown(1);
-});
+    await shutdown(1);
+  }
+);
