@@ -30,43 +30,9 @@ app.listen(process.env.PORT || 3000, () => {
 });
 
 const TOKEN = process.env.TOKEN;
-const CHANNEL_ID = process.env.CHANNEL_ID;
 const CLIENT_ID = process.env.CLIENT_ID;
-
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
-});
-
-async function setOfflineStatus() {
-  try {
-    if (client.user) {
-      await client.user.setStatus('invisible');
-    }
-  } catch (err) {
-    console.error('Failed to set offline status:', err);
-  }
-}
-
-const shutdown = async (code = 0) => {
-  await setOfflineStatus();
-
-  try {
-    await client.destroy();
-  } catch {}
-
-  process.exit(code);
-};
-
-process.on('uncaughtException', async error => {
-  console.error(error);
-});
-
-process.on('unhandledRejection', async reason => {
-  console.error(reason);
-});
-
-process.on('SIGINT', () => shutdown(0));
-process.on('SIGTERM', () => shutdown(0));
+const GAME_ID = process.env.GAME_ID;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 const UPDATE_URL =
   process.env.UPDATE_URL ||
@@ -78,15 +44,12 @@ const UPDATE_DATA_URL =
   process.env.DETAIL_URL ||
   UPDATE_URL;
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
-
 if (
   !TOKEN ||
   !CLIENT_ID ||
-  !UPDATE_URL ||
-  !UPDATE_DATA_URL ||
   !GAME_ID ||
-  !PRIVATE_KEY
+  !PRIVATE_KEY ||
+  !UPDATE_URL
 ) {
   console.error(
     'Missing required environment variables.'
@@ -94,6 +57,59 @@ if (
 
   process.exit(1);
 }
+
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds],
+});
+
+async function setOfflineStatus() {
+  try {
+    if (client.user) {
+      await client.user.setStatus(
+        'invisible'
+      );
+    }
+  } catch (err) {
+    console.error(
+      'Failed to set offline status:',
+      err
+    );
+  }
+}
+
+const shutdown = async (
+  code = 0
+) => {
+  await setOfflineStatus();
+
+  try {
+    await client.destroy();
+  } catch {}
+
+  process.exit(code);
+};
+
+process.on(
+  'uncaughtException',
+  async error => {
+    console.error(error);
+  }
+);
+
+process.on(
+  'unhandledRejection',
+  async reason => {
+    console.error(reason);
+  }
+);
+
+process.on('SIGINT', () =>
+  shutdown(0)
+);
+
+process.on('SIGTERM', () =>
+  shutdown(0)
+);
 
 const GAMEJOLT_API_BASE =
   'https://api.gamejolt.com/api/game/v1_2';
@@ -157,7 +173,10 @@ function compareVersion(v1, v2) {
       .trim()
       .split('.')
       .map(part => {
-        const num = parseInt(part, 10);
+        const num = parseInt(
+          part,
+          10
+        );
 
         return Number.isNaN(num)
           ? part
@@ -174,10 +193,14 @@ function compareVersion(v1, v2) {
 
   for (let i = 0; i < len; i++) {
     const x =
-      a[i] !== undefined ? a[i] : 0;
+      a[i] !== undefined
+        ? a[i]
+        : 0;
 
     const y =
-      b[i] !== undefined ? b[i] : 0;
+      b[i] !== undefined
+        ? b[i]
+        : 0;
 
     if (
       typeof x === 'number' &&
@@ -204,21 +227,21 @@ function formatUpdateText(text) {
 
   return text
     .replace(/\r/g, '')
-
-    // # 見出し
-    .replace(/^# (.*)$/gm, '## $1')
-
-    // ## 見出し
-    .replace(/^## (.*)$/gm, '### $1')
-
-    // 箇条書き
+    .replace(
+      /^# (.*)$/gm,
+      '## $1'
+    )
+    .replace(
+      /^## (.*)$/gm,
+      '### $1'
+    )
     .replace(/^- /gm, '• ')
-
-    // コードブロック対策
     .replace(/```/g, '`` ˋ');
 }
 
-async function getUserData(userId) {
+async function getUserData(
+  userId
+) {
   const key = `user_${userId}_data`;
 
   const url = buildGameJoltUrl(
@@ -234,11 +257,13 @@ async function getUserData(userId) {
 
     const json = await res.json();
 
-    const response = json?.response;
+    const response =
+      json?.response;
 
     if (!response) return null;
 
-    const success = response.success;
+    const success =
+      response.success;
 
     const data =
       response.data ?? null;
@@ -267,7 +292,8 @@ async function fetchVersion() {
       UPDATE_URL
     );
 
-    const text = await res.text();
+    const text =
+      await res.text();
 
     const match = text.match(
       /version\s*[:]\s*([\w.]+)/i
@@ -281,15 +307,23 @@ async function fetchVersion() {
   }
 }
 
-async function checkVersion(force = false) {
+async function checkVersion(
+  force = false
+) {
   try {
-    const version = await fetchVersion();
+    const version =
+      await fetchVersion();
 
     let old = '';
 
-    if (fs.existsSync('./version.txt')) {
+    if (
+      fs.existsSync('./version.txt')
+    ) {
       old = fs
-        .readFileSync('./version.txt', 'utf8')
+        .readFileSync(
+          './version.txt',
+          'utf8'
+        )
         .trim();
     }
 
@@ -302,7 +336,8 @@ async function checkVersion(force = false) {
 
     if (
       old &&
-      compareVersion(version, old) <= 0 &&
+      compareVersion(version, old) <=
+        0 &&
       !force
     ) {
       return false;
@@ -310,7 +345,8 @@ async function checkVersion(force = false) {
 
     if (
       !old ||
-      compareVersion(version, old) === 1
+      compareVersion(version, old) ===
+        1
     ) {
       fs.writeFileSync(
         './version.txt',
@@ -330,17 +366,22 @@ async function checkVersion(force = false) {
       );
     } catch {}
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2b2d31)
-      .setTitle(`🆕 Version ${version}`)
-      .setDescription(
-        detail.slice(0, 4000)
-      );
+    const embed =
+      new EmbedBuilder()
+        .setColor(0x2b2d31)
+        .setTitle(
+          `🆕 Version ${version}`
+        )
+        .setDescription(
+          detail.slice(0, 4000)
+        );
 
     const button =
       new ButtonBuilder()
         .setLabel('インストール')
-        .setStyle(ButtonStyle.Link)
+        .setStyle(
+          ButtonStyle.Link
+        )
         .setURL(
           'https://gamejolt.com/games/shiftline/1053992'
         );
@@ -350,7 +391,7 @@ async function checkVersion(force = false) {
         button
       );
 
-    // 全Guildへ送信
+    // 全Guildのsystem channelへ送信
     for (const guild of client.guilds.cache.values()) {
       try {
         const fullGuild =
@@ -425,9 +466,11 @@ const commands = [
     ),
 
   new SlashCommandBuilder()
-  .setName('help')
-  .setDescription('コマンド一覧'),
-  
+    .setName('help')
+    .setDescription(
+      'コマンド一覧'
+    ),
+
   new SlashCommandBuilder()
     .setName('profile')
     .setDescription(
@@ -438,12 +481,6 @@ const commands = [
         .setName('userid')
         .setDescription('ID')
         .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName('restart')
-    .setDescription(
-      'ボットを再起動します'
     ),
 
   new SlashCommandBuilder()
@@ -468,7 +505,9 @@ const rest = new REST({
       }
     );
 
-    console.log('commands ready');
+    console.log(
+      'commands ready'
+    );
   } catch (e) {
     console.error(e);
   }
@@ -609,39 +648,45 @@ client.on(
             .setTitle(id)
             .addFields(
               {
-                name: 'ユーザーID',
+                name:
+                  'ユーザーID',
                 value: id,
-                inline: false,
               },
               {
                 name: 'データ',
-                value: displayValue,
-                inline: false,
+                value:
+                  '```json\n' +
+                  displayValue +
+                  '\n```',
               }
             ),
         ],
       });
     }
 
-    if (interaction.commandName === 'help') {
-  const embed = new EmbedBuilder()
-    .setColor(0x5865f2)
-    .setTitle('Help')
-    .setDescription(
-      [
-        '`/updatecheck` アップデート確認',
-        '`/nowversion` 現在のバージョン',
-        '`/profile <userid>` ユーザーデータ取得',
-        '`/restart` ボット再起動',
-        '`/exit` ボット終了',
-        '`/help` コマンド一覧',
-      ].join('\n')
-    );
+    // help
+    if (
+      interaction.commandName ===
+      'help'
+    ) {
+      const embed =
+        new EmbedBuilder()
+          .setColor(0x5865f2)
+          .setTitle('Help')
+          .setDescription(
+            [
+              '`/updatecheck` アップデート確認',
+              '`/nowversion` 現在のバージョン',
+              '`/profile <userid>` ユーザーデータ取得',
+              '`/exit` ボット終了',
+              '`/help` コマンド一覧',
+            ].join('\n')
+          );
 
-  await interaction.reply({
-    embeds: [embed],
-  });
-}
+      await interaction.reply({
+        embeds: [embed],
+      });
+    }
 
     // exit
     if (
