@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 
 const fs = require('fs');
@@ -6,8 +7,18 @@ const cron = require('node-cron');
 const fetch =
   globalThis.fetch ||
   require('node-fetch');
-
 const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// ヘルスチェック用エンドポイント
+app.get('/', (req, res) => {
+  res.send('Bot is alive!');
+});
+
+app.listen(PORT, () => {
+  console.log(`Web server running on port ${PORT}`);
+});
 
 const {
   Client,
