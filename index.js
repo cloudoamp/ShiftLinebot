@@ -78,12 +78,10 @@ const UPDATE_DATA_URL =
   process.env.DETAIL_URL ||
   UPDATE_URL;
 
-const GAME_ID = process.env.GAME_ID;
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 if (
   !TOKEN ||
-  !CHANNEL_ID ||
   !CLIENT_ID ||
   !UPDATE_URL ||
   !UPDATE_DATA_URL ||
