@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 
 const fs = require('fs');
@@ -7,16 +6,21 @@ const cron = require('node-cron');
 const fetch =
   globalThis.fetch ||
   require('node-fetch');
+
 const express = require('express');
 const app = express();
-const PORT = process.env.PORT || 3000;
+
+const PORT =
+  process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
   res.send('Bot is alive!');
 });
 
 app.listen(PORT, () => {
-  console.log(`Web server running on port ${PORT}`);
+  console.log(
+    `Web server running on port ${PORT}`
+  );
 });
 
 const {
@@ -31,22 +35,8 @@ const {
   SlashCommandBuilder,
 } = require('discord.js');
 
-
-/* Render監視用 */
-app.get('/', (req, res) => {
-  res.send('Bot is running');
-});
-
-app.listen(
-  process.env.PORT || 3000,
-  () => {
-    console.log(
-      'Web server started'
-    );
-  }
-);
-
 const TOKEN = process.env.TOKEN;
+
 const CLIENT_ID =
   process.env.CLIENT_ID;
 
@@ -65,6 +55,10 @@ const UPDATE_DATA_URL =
   process.env.UPDATEDATA_URL ||
   process.env.DETAIL_URL ||
   UPDATE_URL;
+
+/* ShiftLiner Role */
+const SHIFTLINER_ROLE_ID =
+  '1509399622915723324';
 
 if (
   !TOKEN ||
@@ -356,7 +350,6 @@ async function alreadyPosted(
       });
 
     return messages.some(msg => {
-      // Bot自身のみ確認
       if (
         msg.author.id !==
         client.user.id
@@ -486,7 +479,6 @@ async function checkVersion(
 
         if (!channel) continue;
 
-        // 既に投稿済み確認
         const exists =
           await alreadyPosted(
             channel,
@@ -502,8 +494,14 @@ async function checkVersion(
         }
 
         await channel.send({
+          content: `<@&${SHIFTLINER_ROLE_ID}> 新しいバージョンが公開されました！`,
           embeds: [embed],
           components: [row],
+          allowedMentions: {
+            roles: [
+              SHIFTLINER_ROLE_ID,
+            ],
+          },
         });
 
         console.log(
@@ -537,10 +535,8 @@ client.once(
       client.user.tag
     );
 
-    // 起動時チェック
     await checkVersion();
 
-    // 5分毎
     cron.schedule(
       '*/5 * * * *',
       async () => {
@@ -791,7 +787,6 @@ client.on(
               '`/updatecheck` アップデート確認',
               '`/nowversion` 現在のバージョン',
               '`/profile <userid>` ユーザーデータ取得',
-              '`/exit` ボット終了',
               '`/help` コマンド一覧',
             ].join('\n')
           );
